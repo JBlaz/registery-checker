@@ -1,0 +1,20 @@
+# Ignore compiled class files
+*.class
+
+# Ignore Clojure REPL temporary files
+.repl-history
+
+# Ignore Leiningen and Clojure build artifacts
+/.lein-deps-sum
+/.lein-failures
+/.lein-repl-history
+/.lein-test-report
+/.leiningen-plugins
+
+# Ignore IntelliJ IDEA project files
+/.idea/
+/*.iml
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
