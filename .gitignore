@@ -10,6 +10,9 @@
 /.lein-repl-history
 /.lein-test-report
 /.leiningen-plugins
+./leiningen*
+/.clj-kondo/
+/.lsp/
 
 # Ignore IntelliJ IDEA project files
 /.idea/
