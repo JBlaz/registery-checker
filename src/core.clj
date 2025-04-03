@@ -1,36 +1,19 @@
 (ns core
-  (:require [clj-http.client :as client]
-            [etaoin.api :as e]))
+  (:require [clojure.java.io :as io]
+            [net.cgrand.enlive-html :as html]))
 
-;; (defn fetch-data [url]
-;;   (try
-;;     (let [response (client/get url
-;;                                {:headers {"User-Agent" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-;;                                           "Accept" "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-;;                                           "Referer" "https://www.google.com"}
-;;                                 :as :string
-;;                                 :throw-exceptions false})]
-;;       (if (= 403 (:status response))
-;;         (do (println "What? " response)
-;;             "Error: Access forbidden (403)")
-;;         (:body response)))
-;;     (catch Exception e
-;;       (str "Error fetching data: " (.getMessage e)))))
+(defn parse-html [file-path]
+  (let [html-content (slurp (io/file file-path))
+        parsed-html (html/html-resource (java.io.StringReader. html-content))]
+    (for [row (html/select parsed-html [:tr])
+          :let [name (first (html/select row [:strong]))
+                address (first (html/select row [:td :br]))]
+          :when (and name address)]
+      {:name (html/text name)
+       :address (html/text address)})))
 
-;; (defn -main
-;;   "The entry point for the application."
-;;   [& args]
-;;   (println "Hello, World!")
-;;   (println "Arguments:" args)
-;;   (println (fetch-data ""))) ;; Print the raw string
-
-(def driver (e/chrome))
-
-(defn fetch-with-browser [url]
-  (e/go driver url)
-  (e/click driver [{:}])
-  )
-
-(defn -main [& args]
-  (println "Fetching data from example API...")
-  (println (fetch-with-browser "http://www.communitynotification.com/cap_office_disclaimer.php?office=54438")))
+(defn -main []
+  (let [file-path "c:/Users/Jase/Documents/code/registery-checker/src/page_1.html"
+        results (parse-html file-path)]
+    (doseq [entry results]
+      (println "Name:" (:name entry) "Address:" (:address entry)))))
