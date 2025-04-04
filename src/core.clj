@@ -1,30 +1,20 @@
 (ns core
-  (:require [etaoin.api :as e]
-            [cheshire.core :as json]
-            [clojure.java.io :as io]
-            [clj-http.client :as http]))
+  (:require
+   [cheshire.core :as json]
+   [clojure.java.io :as io]
+   [etaoin.api :as e]))
 
-(def url "https://nsopw-api.ojp.gov/nsopw/v1/v1.0/search")
-
-(def headers
-  {"Accept" "application/json, text/javascript, */*; q=0.01"
-   "Accept-Language" "en-US,en;q=0.7"
-   "Content-Type" "application/x-www-form-urlencoded; charset=UTF-8"
-   "Origin" "https://www.nsopw.gov"
-   "Referer" "https://www.nsopw.gov/"
-   "User-Agent" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
-   "Sec-Fetch-Dest" "empty"
-   "Sec-Fetch-Mode" "cors"
-   "Sec-Fetch-Site" "cross-site"
-   "Sec-GPC" "1"})
 
 (defn read-json [file-path]
   (json/parse-string (slurp (io/file file-path)) true))
 
-(defn post-request [url payload]
-  (http/post url
-             {:headers headers
-              :body (json/generate-string payload)}))
+(defn write-results-to-file [file-path results]
+  (let [json-data (json/generate-string results {:pretty true})]
+    (spit file-path json-data)))
+
+(def state (atom {:first-run true
+                  :retest []
+                  :tested []}))
 
 (defn -main []
   ;; Start a browser session (e.g., Chrome)
@@ -38,10 +28,7 @@
             member-names (map #(hash-map
                                 :firstName (get % :nameGivenPreferredLocal "")
                                 :lastName (get % :nameFamilyPreferredLocal ""))
-                              members)
-            state (atom {:first-run true
-                         :retest []
-                         :tested []})] ; Track whether it's the first search
+                              members)]
 
         ;; Search for each member on the website
         (doseq [{:keys [firstName lastName]} member-names]
@@ -59,26 +46,25 @@
           ;; Click the search button
           (e/click driver {:id "searchbyname"})
 
-          ;; Sleep for 5 seconds only for the first search
           (Thread/sleep 10000)
+
+          ;; Select "All" from the dropdown to show all results
+          (e/select driver {:name "nsopwdt_length"} "All")
 
           ;; Extract the search results from the div with class "dataTables_info"
           (let [results (e/get-element-text driver {:css ".dataTables_info"})]
             (if (not= results "Showing 0 to 0 of 0 entries")
               (do
-                (println "---------------------")
-                (println "Searched for:" firstName lastName)
-                (println "Results:" results)
-                (swap! state update :retest conj {:firstName firstName :lastName lastName}))
-              (swap! state update :tested conj {:firstName firstName :lastName lastName})))
+                (prn "Found results for" firstName lastName)
+                (prn "Results:" results)
+                (prn "----------------------------------"))
+              (swap! state update :tested conj {:firstName firstName :lastName lastName :results results})))
 
           ;; Navigate back to the previous page
           (Thread/sleep 1000)
-          (e/back driver))
+          (e/back driver)))
 
-          (prn "---------------------")
-          (prn "Retest:" (:retest @state)))
-
-      ;; Close the browser
       (finally
+        (write-results-to-file "output/retest.json" (:retest @state))
+        (write-results-to-file "output/tested.json" (:tested @state))
         (e/quit driver)))))
